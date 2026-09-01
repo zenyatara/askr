@@ -305,6 +305,9 @@ class Askr(Gtk.Application):
         self.pending_image = None
         self.draft = ""
         self.css_provider = None
+        # The opacity actually in force. Seeded from config and reset by
+        # /reload; /opacity moves it without touching the file.
+        self.opacity = None
         self.waiting_mark = None
         self.waiting_timer = None
         self.waiting_since = 0.0
@@ -362,7 +365,8 @@ class Askr(Gtk.Application):
     def do_startup(self):
         Gtk.Application.do_startup(self)
         self.css_provider = Gtk.CssProvider()
-        self.css_provider.load_from_data(build_css(self.ui_opacity()))
+        self.opacity = self.ui_opacity()
+        self.css_provider.load_from_data(build_css(self.opacity))
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(),
             self.css_provider,
@@ -404,7 +408,8 @@ class Askr(Gtk.Application):
             self.notice("[Busy — reload again once the answer arrives.]")
             return
         self.config = load_config()
-        self.css_provider.load_from_data(build_css(self.ui_opacity()))
+        self.opacity = self.ui_opacity()
+        self.css_provider.load_from_data(build_css(self.opacity))
         self.workdir = self.resolve_workdir()
         self.agent = resolve_agent(self.config)
         # A changed agent archives the conversation, exactly as it would across
@@ -416,7 +421,32 @@ class Askr(Gtk.Application):
         self.refresh_prompt()
         self.notice(
             f"[Reloaded {CONFIG_FILE.name}: agent {self.agent['name']}, "
-            f"opacity {self.ui_opacity():.2f}.]"
+            f"opacity {self.opacity:.2f}.]"
+        )
+
+    def preview_opacity(self, argument):
+        """Try a panel opacity immediately, without writing to the config.
+
+        Deliberately does not persist. config.toml stays the single source of
+        truth, and Python ships no TOML writer, so saving would mean either a
+        new dependency or rewriting the file by hand and losing its comments.
+        `/reload` puts the configured value back.
+        """
+        if not argument:
+            self.notice(f"[Opacity is {self.opacity:.2f}. Try: /opacity 0.8]")
+            return
+        try:
+            value = float(argument)
+        except ValueError:
+            self.notice(f"[Not a number: {argument!r}. Try: /opacity 0.8]")
+            return
+        clamped = min(max(value, 0.0), 1.0)
+        self.opacity = clamped
+        self.css_provider.load_from_data(build_css(clamped))
+        outside = "" if clamped == value else f" (clamped from {value:g})"
+        self.notice(
+            f"[Opacity {clamped:.2f}{outside} — preview only. To keep it, set "
+            f"opacity = {clamped:.2f} under [ui] in {CONFIG_FILE}.]"
         )
 
     def quit_cleanly(self):
@@ -825,6 +855,10 @@ class Askr(Gtk.Application):
         if question == "/reload":
             self.present_answer()
             self.reload_config()
+            return
+        if question.split(" ")[0] == "/opacity":
+            self.present_answer()
+            self.preview_opacity(question.partition(" ")[2].strip())
             return
         self.running = True
         self.present_answer()

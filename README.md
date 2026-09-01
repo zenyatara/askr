@@ -6,8 +6,8 @@ A lightweight, local question overlay for [Omarchy](https://omarchy.org/) / Hypr
 panel that keeps its position and size between openings. `Super + Shift + U`
 opens or closes that panel from anywhere; `Escape` closes it from inside.
 
-Use `/new` in either input to begin a new conversation, and `/reload` to pick
-up config changes without restarting. History lives in
+Use `/new` in either input to begin a new conversation, `/reload` to pick up
+config changes without restarting, and `/opacity 0.8` to try a translucency. History lives in
 `~/.local/share/askr/history.json`.
 
 ## Which agent it uses
@@ -95,6 +95,11 @@ Panel translucency is `[ui] opacity`, from `0.0` to `1.0` (default `0.5`):
 [ui]
 opacity = 0.8
 ```
+
+To find a value you like, type `/opacity 0.8` in either input — it applies
+immediately so you can judge it against your actual desktop. That is a preview
+only; put the number in `config.toml` to keep it, and `/reload` restores
+whatever the file says.
 
 Only the backgrounds fade — text stays fully opaque, so the panel keeps its
 contrast over a busy desktop. Use this rather than a Hyprland `opacity` window

@@ -73,6 +73,8 @@
 # Only the backgrounds fade — text, borders and buttons stay fully opaque, so
 # the panel keeps its contrast over a busy desktop. This is deliberately not a
 # Hyprland `opacity` window rule, which would fade the text along with it.
+#
+# Type `/opacity 0.8` in askr to try a value live before writing it here.
 # opacity = 0.5
 
 
