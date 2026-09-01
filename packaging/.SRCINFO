@@ -1,0 +1,20 @@
+pkgbase = askr
+	pkgdesc = Floating question overlay for Omarchy and Hyprland, driven by your default coding agent
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/zenyatara/askr
+	arch = any
+	license = MIT
+	depends = python
+	depends = python-gobject
+	depends = gtk4
+	depends = hyprland
+	optdepends = mpg123: completion sound
+	optdepends = ffmpeg: completion sound, alternative to mpg123
+	optdepends = mpv: completion sound, alternative to mpg123
+	optdepends = libcanberra: screenshot shutter sound
+	optdepends = grim: attach a screenshot of the focused monitor to a question
+	source = askr-0.1.0.tar.gz::https://github.com/zenyatara/askr/archive/refs/tags/v0.1.0.tar.gz
+	sha256sums = 7b02b28dec07872bf23c2bf71f778d1ba507bcd5651b2783f6eb5b4ea52ff489
+
+pkgname = askr

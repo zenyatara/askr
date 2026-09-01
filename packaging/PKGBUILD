@@ -1,0 +1,38 @@
+# The AUR repo (ssh://aur@aur.archlinux.org/askr.git) must have PKGBUILD and
+# .SRCINFO at its root, so this directory is the tracked source of truth and
+# gets copied into that checkout at submission time. Regenerate .SRCINFO with
+# `makepkg --printsrcinfo > .SRCINFO`, and refresh sha256sums with `updpkgsums`
+# after every new release tag.
+
+# Maintainer: zenyatara <193911092+zenyatara@users.noreply.github.com>
+
+pkgname=askr
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Floating question overlay for Omarchy and Hyprland, driven by your default coding agent"
+arch=('any')
+url="https://github.com/zenyatara/askr"
+license=('MIT')
+depends=('python' 'python-gobject' 'gtk4' 'hyprland')
+optdepends=(
+  'mpg123: completion sound'
+  'ffmpeg: completion sound, alternative to mpg123'
+  'mpv: completion sound, alternative to mpg123'
+  'libcanberra: screenshot shutter sound'
+  'grim: attach a screenshot of the focused monitor to a question'
+)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('7b02b28dec07872bf23c2bf71f778d1ba507bcd5651b2783f6eb5b4ea52ff489')
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  install -Dm755 askr.py "$pkgdir/usr/bin/$pkgname"
+
+  # askr looks here when it is not running from a clone; see find_asset_dir().
+  install -Dm644 -t "$pkgdir/usr/share/$pkgname/assets" assets/herdr-done.mp3
+  install -Dm644 -t "$pkgdir/usr/share/$pkgname/assets" assets/herdr-request.mp3
+
+  install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" README.md config.example.toml
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

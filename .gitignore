@@ -1,3 +1,9 @@
 __pycache__/
 *.pyc
 backups/
+
+# Packaging sources are tracked; their build output is not.
+packaging/pkg/
+packaging/src/
+packaging/*.pkg.tar.*
+packaging/*.tar.gz
