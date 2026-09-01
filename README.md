@@ -75,13 +75,38 @@ git clone https://github.com/zenyatara/askr.git ~/.local/share/askr-app
 python3 ~/.local/share/askr-app/askr.py
 ```
 
-Then add the keybindings and window rules below.
-
 An AUR package is prepared but not yet published, because AUR account
 registration is paused. Once it lands, `omarchy pkg aur add askr` will install
 it to `/usr/bin/askr`, with the sounds under `/usr/share/askr/assets` — askr
 finds those on its own, and `ASKR_ASSETS` overrides the location if your
 prefix differs.
+
+Then add the keybindings and window rules from the next section — without
+them there is no `Super+U`, and Hyprland tiles the panel instead of floating
+it over your work.
+
+## Hyprland setup
+
+```lua
+-- ~/.config/hypr/bindings.lua
+-- Installed from a package:
+o.bind("SUPER + U", "askr", "askr")
+o.bind("SUPER + SHIFT + U", "Toggle askr answer", "askr --toggle-answer")
+
+-- Or from a clone, matching the path used above:
+-- o.bind("SUPER + U", "askr", "python3 $HOME/.local/share/askr-app/askr.py")
+-- o.bind("SUPER + SHIFT + U", "Toggle askr answer",
+--        "python3 $HOME/.local/share/askr-app/askr.py --toggle-answer")
+
+-- ~/.config/hypr/hyprland.lua
+o.window({ class = "^io\\.github\\.zenyatara\\.askr$", title = "^askr$" },
+         { float = true, center = true, border_size = 0, size = { 560, 96 } })
+o.window({ class = "^io\\.github\\.zenyatara\\.askr$", title = "^askr answer$" },
+         { float = true, pin = true, border_size = 0 })
+```
+
+The answer panel's position is restored by askr itself, so the rule
+deliberately carries no `move` or `size`.
 
 ## Requirements
 
@@ -147,29 +172,6 @@ because thread ids are not interchangeable between agents.
 Set `ASKR_DEBUG=1` to log the agent command, the Hyprland geometry dispatches
 and sound playback to stderr. Note that the logged command includes your prompt
 text, so avoid redirecting that output somewhere it would be kept.
-
-## Hyprland setup
-
-```lua
--- ~/.config/hypr/bindings.lua
--- Installed from a package:
-o.bind("SUPER + U", "askr", "askr")
-o.bind("SUPER + SHIFT + U", "Toggle askr answer", "askr --toggle-answer")
-
--- Or from a clone:
--- o.bind("SUPER + U", "askr", "python3 /path/to/askr/askr.py")
--- o.bind("SUPER + SHIFT + U", "Toggle askr answer",
---        "python3 /path/to/askr/askr.py --toggle-answer")
-
--- ~/.config/hypr/hyprland.lua
-o.window({ class = "^io\\.github\\.zenyatara\\.askr$", title = "^askr$" },
-         { float = true, center = true, border_size = 0, size = { 560, 96 } })
-o.window({ class = "^io\\.github\\.zenyatara\\.askr$", title = "^askr answer$" },
-         { float = true, pin = true, border_size = 0 })
-```
-
-The answer panel's position is restored by askr itself, so the rule
-deliberately carries no `move` or `size`.
 
 ## License
 
