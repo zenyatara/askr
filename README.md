@@ -66,6 +66,18 @@ not necessarily askr's, if you also use the CLI directly.
 built from each CLI's documented headless flags; please open an issue if one
 has drifted.
 
+## Installing
+
+From the AUR:
+
+```bash
+omarchy pkg aur add askr    # or: yay -S askr
+```
+
+Or run it straight from a clone — no build step, it is a single script.
+Packages install the sounds to `/usr/share/askr/assets`, which askr finds on
+its own; set `ASKR_ASSETS` if your prefix differs.
+
 ## Requirements
 
 - Hyprland 0.56+ — the panel is positioned through `hyprctl`'s Lua dispatchers
@@ -135,9 +147,14 @@ text, so avoid redirecting that output somewhere it would be kept.
 
 ```lua
 -- ~/.config/hypr/bindings.lua
-o.bind("SUPER + U", "askr", "python3 /path/to/askr/askr.py")
-o.bind("SUPER + SHIFT + U", "Toggle askr answer",
-       "python3 /path/to/askr/askr.py --toggle-answer")
+-- Installed from a package:
+o.bind("SUPER + U", "askr", "askr")
+o.bind("SUPER + SHIFT + U", "Toggle askr answer", "askr --toggle-answer")
+
+-- Or from a clone:
+-- o.bind("SUPER + U", "askr", "python3 /path/to/askr/askr.py")
+-- o.bind("SUPER + SHIFT + U", "Toggle askr answer",
+--        "python3 /path/to/askr/askr.py --toggle-answer")
 
 -- ~/.config/hypr/hyprland.lua
 o.window({ class = "^io\\.github\\.zenyatara\\.askr$", title = "^askr$" },

@@ -29,7 +29,27 @@ CONFIG_FILE = Path(
 DATA_DIR = Path.home() / ".local" / "share" / "askr"
 STATE_FILE = DATA_DIR / "history.json"
 CAPTURE_DIR = DATA_DIR / "captures"
-ASSET_DIR = Path(__file__).resolve().parent / "assets"
+
+
+def find_asset_dir():
+    """Where the bundled sounds live.
+
+    Beside the script when run from a clone, and under /usr/share/askr once
+    installed as a package -- the script itself then sits in /usr/bin, so
+    resolving relative to it would point at a directory that does not exist.
+    ASKR_ASSETS overrides both, so a packager using another prefix need not
+    patch the source.
+    """
+    override = os.environ.get("ASKR_ASSETS")
+    if override:
+        return Path(override).expanduser()
+    beside = Path(__file__).resolve().parent / "assets"
+    if beside.is_dir():
+        return beside
+    return Path("/usr/share/askr/assets")
+
+
+ASSET_DIR = find_asset_dir()
 # Omarchy records the coding agent the user picked with `omarchy default agent`.
 OMARCHY_AGENT_FILE = Path.home() / ".config" / "omarchy" / "defaults" / "agent"
 # Player choice depends on the format, and gets it wrong silently in both
