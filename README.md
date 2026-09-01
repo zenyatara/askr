@@ -6,7 +6,8 @@ A lightweight, local question overlay for [Omarchy](https://omarchy.org/) / Hypr
 panel that keeps its position and size between openings. `Super + Shift + U`
 opens or closes that panel from anywhere; `Escape` closes it from inside.
 
-Use `/new` in either input to begin a new conversation. History lives in
+Use `/new` in either input to begin a new conversation, and `/reload` to pick
+up config changes without restarting. History lives in
 `~/.local/share/askr/history.json`.
 
 ## Which agent it uses
@@ -98,6 +99,18 @@ opacity = 0.8
 Only the backgrounds fade — text stays fully opaque, so the panel keeps its
 contrast over a busy desktop. Use this rather than a Hyprland `opacity` window
 rule, which would fade the text along with the background.
+
+After editing the config, apply it with `/reload` in either input, or from
+anywhere:
+
+```bash
+askr.py --reload   # re-read config.toml in the running instance
+askr.py --quit     # exit cleanly, saving the panel's geometry
+```
+
+Reloading keeps the conversation and the panel's position. The one exception is
+the agent: changing it archives the current conversation and starts a fresh one,
+because thread ids are not interchangeable between agents.
 
 Set `ASKR_DEBUG=1` to log the agent command, the Hyprland geometry dispatches
 and sound playback to stderr. Note that the logged command includes your prompt

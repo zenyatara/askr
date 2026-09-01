@@ -304,6 +304,7 @@ class Askr(Gtk.Application):
         self.recording = False
         self.pending_image = None
         self.draft = ""
+        self.css_provider = None
         self.waiting_mark = None
         self.waiting_timer = None
         self.waiting_since = 0.0
@@ -360,10 +361,12 @@ class Askr(Gtk.Application):
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
-        provider = Gtk.CssProvider()
-        provider.load_from_data(build_css(self.ui_opacity()))
+        self.css_provider = Gtk.CssProvider()
+        self.css_provider.load_from_data(build_css(self.ui_opacity()))
         Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            Gdk.Display.get_default(),
+            self.css_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
         self.build_windows()
         # Keep manual move/resize changes, including changes made while the
@@ -373,12 +376,55 @@ class Askr(Gtk.Application):
 
     def do_command_line(self, command_line):
         # A second launch is forwarded here by the primary instance, which is how
-        # the keybindings reach an already-running askr.
-        if "--toggle-answer" in command_line.get_arguments()[1:]:
+        # the keybindings and the CLI reach an already-running askr.
+        arguments = command_line.get_arguments()[1:]
+        if "--toggle-answer" in arguments:
             self.toggle_answer()
+        elif "--reload" in arguments:
+            self.reload_config()
+        elif "--quit" in arguments:
+            self.quit_cleanly()
         else:
             self.activate()
         return 0
+
+    def notice(self, text):
+        """Report something in the panel without it reading as an answer."""
+        self.append_text(f"{text}\n", "waiting")
+        GLib.idle_add(self.scroll_to_bottom)
+
+    def reload_config(self):
+        """Re-read config.toml and apply it without losing the conversation.
+
+        Only the stylesheet, the resolved agent and the working directory are
+        bound at startup; every other setting is read from self.config where it
+        is used, so rebuilding those three is enough.
+        """
+        if self.running:
+            self.notice("[Busy — reload again once the answer arrives.]")
+            return
+        self.config = load_config()
+        self.css_provider.load_from_data(build_css(self.ui_opacity()))
+        self.workdir = self.resolve_workdir()
+        self.agent = resolve_agent(self.config)
+        # A changed agent archives the conversation, exactly as it would across
+        # a restart; redraw so the panel is not left showing the old transcript.
+        self.adopt_agent()
+        if self.previous_agent:
+            self.answer_buffer.set_text("")
+            self.restore_visible_history()
+        self.refresh_prompt()
+        self.notice(
+            f"[Reloaded {CONFIG_FILE.name}: agent {self.agent['name']}, "
+            f"opacity {self.ui_opacity():.2f}.]"
+        )
+
+    def quit_cleanly(self):
+        """Exit, saving the panel's geometry first so a relaunch restores it."""
+        if self.answer_window and self.answer_window.get_visible():
+            self.remember_answer_geometry()
+        self.save_state()
+        self.quit()
 
     def do_activate(self):
         if self.prompt_window.get_visible():
@@ -775,6 +821,10 @@ class Askr(Gtk.Application):
             return
         if question == "/new":
             self.start_new()
+            return
+        if question == "/reload":
+            self.present_answer()
+            self.reload_config()
             return
         self.running = True
         self.present_answer()
