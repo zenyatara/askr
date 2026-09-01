@@ -81,9 +81,9 @@ it to `/usr/bin/askr`, with the sounds under `/usr/share/askr/assets` — askr
 finds those on its own, and `ASKR_ASSETS` overrides the location if your
 prefix differs.
 
-Then add the keybindings and window rules from the next section — without
-them there is no `Super+U`, and Hyprland tiles the panel instead of floating
-it over your work.
+Then add the keybinding from the next section — without it there is no
+`Super+U`, which is the whole point. The window rules there are worth adding
+too, though askr works without them.
 
 ## Hyprland setup
 
@@ -105,7 +105,13 @@ o.window({ class = "^io\\.github\\.zenyatara\\.askr$", title = "^askr answer$" }
          { float = true, pin = true, border_size = 0 })
 ```
 
-The answer panel's position is restored by askr itself, so the rule
+The keybinding is the part you need. The window rules are optional polish:
+Hyprland already floats both windows on its own, because the prompt is
+fixed-size and the answer panel is a dialog. What the rules add is `pin`, so
+the panel stays with you when you switch workspaces, plus centring the prompt
+and dropping the borders.
+
+The answer panel's position is restored by askr itself, so its rule
 deliberately carries no `move` or `size`.
 
 ## Requirements
