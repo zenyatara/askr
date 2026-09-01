@@ -68,6 +68,14 @@
 # thread    = "session_id"
 
 
+[ui]
+# How translucent the panels are, 0.0 (invisible) to 1.0 (solid).
+# Only the backgrounds fade — text, borders and buttons stay fully opaque, so
+# the panel keeps its contrast over a busy desktop. This is deliberately not a
+# Hyprland `opacity` window rule, which would fade the text along with it.
+# opacity = 0.5
+
+
 [sound]
 # enabled = true          # false silences both sounds below
 

@@ -85,7 +85,19 @@ If replies start feeling slow in a long conversation with several screenshots,
 
 Everything is optional; askr runs with no config file. See
 [`config.example.toml`](config.example.toml) for the full set: working
-directory, agent and model, completion sound, and text-to-speech.
+directory, agent and model, panel opacity, sounds, screenshots, and
+text-to-speech.
+
+Panel translucency is `[ui] opacity`, from `0.0` to `1.0` (default `0.5`):
+
+```toml
+[ui]
+opacity = 0.8
+```
+
+Only the backgrounds fade — text stays fully opaque, so the panel keeps its
+contrast over a busy desktop. Use this rather than a Hyprland `opacity` window
+rule, which would fade the text along with the background.
 
 Set `ASKR_DEBUG=1` to log the agent command, the Hyprland geometry dispatches
 and sound playback to stderr. Note that the logged command includes your prompt

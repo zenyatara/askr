@@ -232,10 +232,14 @@ TEXT_TAGS = {
     "waiting": {"foreground": "#7d8799", "style": Pango.Style.ITALIC},
 }
 
-CSS = b"""
+DEFAULT_OPACITY = 0.50
+
+# {alpha} is filled in by build_css(). Everything else is literal CSS, braces
+# included, which is why fill() is used rather than str.format.
+CSS_TEMPLATE = """
 window { background: transparent; }
 .askr-surface {
-  background-color: rgba(18, 21, 27, 0.50);
+  background-color: rgba(18, 21, 27, {alpha});
   border: 1px solid rgba(255, 255, 255, 0.20);
   border-radius: 16px;
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
@@ -243,7 +247,7 @@ window { background: transparent; }
 }
 .askr-answer { font-size: 15px; }
 entry, textview {
-  background-color: rgba(7, 9, 12, 0.48);
+  background-color: rgba(7, 9, 12, {alpha});
   color: #f5f7fb;
   border: 1px solid rgba(255, 255, 255, 0.20);
   border-radius: 10px;
@@ -258,6 +262,19 @@ button.icon-recording { background-color: #941f2a; border-color: #f25b68; color:
 button.icon-attached { background-color: #16803d; border-color: #37d06a; color: #ffffff; }
 button.icon-on label, button.icon-off label, button.icon-action label, button.icon-recording label, button.icon-attached label { color: #ffffff; font-weight: 700; }
 """
+
+
+def build_css(opacity):
+    """Render the stylesheet at the configured translucency.
+
+    Only the backgrounds fade. Text, borders and the state buttons stay fully
+    opaque, so the panel keeps its contrast over a busy desktop -- unlike a
+    Hyprland `opacity` window rule, which fades the text along with everything
+    else. The panel and its input fields share one alpha so that `opacity = 1`
+    is genuinely solid; their depth comes from the colours, not the alpha.
+    """
+    alpha = min(max(opacity, 0.0), 1.0)
+    return fill(CSS_TEMPLATE, {"alpha": f"{alpha:.3f}"}).encode()
 
 
 class Askr(Gtk.Application):
@@ -329,10 +346,22 @@ class Askr(Gtk.Application):
         self.current["agent"] = name
         self.save_state()
 
+    def ui_opacity(self):
+        """Panel translucency from config, defaulting to the built-in value."""
+        configured = (self.config.get("ui") or {}).get("opacity", DEFAULT_OPACITY)
+        try:
+            value = float(configured)
+        except (TypeError, ValueError):
+            self.debug("ui.opacity is not a number, ignoring:", configured)
+            return DEFAULT_OPACITY
+        if not 0.0 <= value <= 1.0:
+            self.debug("ui.opacity out of range, clamping:", value)
+        return value
+
     def do_startup(self):
         Gtk.Application.do_startup(self)
         provider = Gtk.CssProvider()
-        provider.load_from_data(CSS)
+        provider.load_from_data(build_css(self.ui_opacity()))
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
