@@ -1,0 +1,107 @@
+# askr configuration — copy to ~/.config/askr/config.toml.
+# Every key is optional; askr works with no config file at all.
+
+# Directory the agent runs in.
+# Default: ~/Work when it exists, otherwise $HOME.
+# workdir = "~/Work"
+
+
+[agent]
+# Which coding agent to drive.
+# Default: whatever `omarchy default agent` reports, from
+# ~/.config/omarchy/defaults/agent. askr follows it, so changing your Omarchy
+# agent changes askr too. Set this to pin askr to one agent regardless.
+# name = "codex"
+
+# Model and reasoning effort, keyed by agent. Left unset, each agent uses its
+# own default. Only passed to agents that accept them.
+#
+# Key these by agent rather than setting a bare `model`: a bare model names no
+# agent, so askr only trusts it when `name` above pins one. Otherwise changing
+# `omarchy default agent` would hand the new agent the old agent's model.
+#
+# [agent.models]
+# codex  = "gpt-5.6-luna"
+# claude = "claude-opus-5"
+#
+# [agent.effort]
+# codex = "low"
+
+# Extra arguments appended to every invocation.
+# args = ["--config", "hide_agent_reasoning=true"]
+
+
+# Teach askr an agent it does not know, or override one it does. Anything set
+# here replaces that key in the built-in recipe; anything omitted is kept.
+#
+#   start / resume  argv. {workdir} {model} {effort} {thread_id} are substituted
+#                   and the prompt is appended as the final argument.
+#   model / effort  fragments appended only when that setting has a value
+#   image           fragment appended only when a screenshot is attached
+#   prompt          flag placed immediately before the prompt, for agents that
+#                   take it as a flag value rather than positionally
+#   format          "jsonl" (default) or "text" for agents that just print prose
+#   text            dotted paths to answer text in each JSON line; [] maps a list
+#   text_when       only read text from lines matching these dotted paths
+#   thread          dotted path to the conversation id, for resuming
+#
+# There are three ways to continue a conversation. Use whichever the agent
+# supports:
+#
+#   1. resume + thread  askr reads the id out of the agent's JSON and passes it
+#                       back. The most reliable; used for codex and claude.
+#   2. session          askr mints a UUID and the agent creates that session on
+#                       demand. Used for pi and omp.
+#   3. continue         replaces `start` once a conversation exists. Continues
+#                       the agent's most recent session, which is not
+#                       necessarily askr's if you also use the CLI directly.
+#
+# [agent.command]
+# start     = ["mycli", "--json", "--cd", "{workdir}"]
+# resume    = ["mycli", "--json", "--session", "{thread_id}"]
+# session   = ["--session-id", "{thread_id}"]
+# continue  = ["mycli", "--json", "--continue"]
+# model     = ["--model", "{model}"]
+# format    = "jsonl"
+# text      = ["message.text"]
+# text_when = { type = ["assistant"] }
+# thread    = "session_id"
+
+
+[sound]
+# enabled = true          # false silences both sounds below
+
+# Played when an answer finishes.
+# file = "/path/to/askr/assets/herdr-done.mp3"
+
+# Played when a screenshot is captured. Unset uses the desktop's own
+# "camera-shutter" sound via canberra, falling back to the freedesktop theme
+# file, so askr ships no audio for it. Set to "" to stay silent, or point it at
+# a file of your own.
+# shutter = ""
+
+# Players for the completion sound. askr picks a decoder by file extension,
+# because both directions fail silently: pw-play and paplay stop partway
+# through an MP3 and still exit 0, and mpg123 exits 0 on an ogg without playing
+# anything. Only override this if the defaults do not suit you.
+# players = [
+#   ["mpg123", "-q"],
+#   ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"],
+#   ["mpv", "--no-video", "--really-quiet"],
+# ]
+
+
+[voice]
+# Spoken replies, toggled with the speaker button in the prompt.
+# piper = "~/.local/bin/piper"
+# model = "~/.local/share/askr/voices/en_US-ljspeech-high.onnx"
+
+
+[screenshot]
+# The agent keeps every attachment in the conversation and re-sends them with
+# each later question, so capture size is paid again on every turn. A
+# full-resolution JPEG is about 4x smaller than PNG and still legible.
+# format = "jpeg"     # or "png"
+# quality = 90
+# scale = 1.0         # e.g. 0.5 halves the resolution; smaller and cheaper,
+#                     # but small on-screen text may stop being readable
