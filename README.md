@@ -68,15 +68,20 @@ has drifted.
 
 ## Installing
 
-From the AUR:
+Clone it and run it — there is no build step, it is a single script:
 
 ```bash
-omarchy pkg aur add askr    # or: yay -S askr
+git clone https://github.com/zenyatara/askr.git ~/.local/share/askr-app
+python3 ~/.local/share/askr-app/askr.py
 ```
 
-Or run it straight from a clone — no build step, it is a single script.
-Packages install the sounds to `/usr/share/askr/assets`, which askr finds on
-its own; set `ASKR_ASSETS` if your prefix differs.
+Then add the keybindings and window rules below.
+
+An AUR package is prepared but not yet published, because AUR account
+registration is paused. Once it lands, `omarchy pkg aur add askr` will install
+it to `/usr/bin/askr`, with the sounds under `/usr/share/askr/assets` — askr
+finds those on its own, and `ASKR_ASSETS` overrides the location if your
+prefix differs.
 
 ## Requirements
 
