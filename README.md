@@ -6,8 +6,18 @@ A lightweight, local question overlay for [Omarchy](https://omarchy.org/) / Hypr
 panel that keeps its position and size between openings. `Super + Shift + U`
 opens or closes that panel from anywhere; `Escape` closes it from inside.
 
-Use `/new` in either input to begin a new conversation, `/reload` to pick up
-config changes without restarting, and `/opacity 0.8` to try a translucency. History lives in
+Type `/help` in either input to list the commands:
+
+| | |
+|---|---|
+| `/new` | start a new conversation |
+| `/brief` | three-sentence answers; `/brief on\|off` |
+| `/voice` | spoken replies; `/voice on\|off` |
+| `/opacity 0.8` | try a panel opacity |
+| `/reload` | re-read `config.toml` |
+
+`/brief` and `/voice` are the same two toggles as the ⚡ and 🔊 buttons, and
+persist the same way. History lives in
 `~/.local/share/askr/history.json`.
 
 ## Which agent it uses

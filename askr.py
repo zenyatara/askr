@@ -397,7 +397,7 @@ class Askr(Gtk.Application):
         self.append_text(f"{text}\n", "waiting")
         GLib.idle_add(self.scroll_to_bottom)
 
-    def reload_config(self):
+    def reload_config(self, argument=""):
         """Re-read config.toml and apply it without losing the conversation.
 
         Only the stylesheet, the resolved agent and the working directory are
@@ -424,7 +424,7 @@ class Askr(Gtk.Application):
             f"opacity {self.opacity:.2f}.]"
         )
 
-    def preview_opacity(self, argument):
+    def preview_opacity(self, argument=""):
         """Try a panel opacity immediately, without writing to the config.
 
         Deliberately does not persist. config.toml stays the single source of
@@ -448,6 +448,33 @@ class Askr(Gtk.Application):
             f"[Opacity {clamped:.2f}{outside} — preview only. To keep it, set "
             f"opacity = {clamped:.2f} under [ui] in {CONFIG_FILE}.]"
         )
+
+    def set_toggle(self, button, argument, label):
+        """Flip one of the prompt toggles.
+
+        The button stays the single source of truth: setting it emits `toggled`,
+        and that handler is what updates the flag, repaints and saves.
+        """
+        wanted = {"on": True, "off": False}.get(argument.lower()) if argument else None
+        if argument and wanted is None:
+            self.notice(f"[Say on or off, or nothing at all to flip it.]")
+            return
+        button.set_active(not button.get_active() if wanted is None else wanted)
+        self.notice(f"[{label} {'on' if button.get_active() else 'off'}.]")
+
+    def toggle_brief(self, argument=""):
+        self.set_toggle(self.brief_toggle, argument, "Brief replies")
+
+    def toggle_voice(self, argument=""):
+        self.set_toggle(self.voice_toggle, argument, "Voice replies")
+
+    def show_help(self, argument=""):
+        widest = max(len(verb) for verb in self.COMMANDS)
+        listing = "\n".join(
+            f"  {verb.ljust(widest)}  {description}"
+            for verb, (_, description) in sorted(self.COMMANDS.items())
+        )
+        self.notice(f"[Commands]\n{listing}")
 
     def quit_cleanly(self):
         """Exit, saving the panel's geometry first so a relaunch restores it."""
@@ -832,7 +859,7 @@ class Askr(Gtk.Application):
             self.reply_entry.set_text("")
             self.ask(question)
 
-    def start_new(self):
+    def start_new(self, argument=""):
         if self.running:
             return
         self.archive_conversation()
@@ -846,19 +873,25 @@ class Askr(Gtk.Application):
         self.present_answer()
         self.reply_entry.grab_focus()
 
+    # Slash commands, and the text /help lists them with. Every handler takes
+    # the rest of the line, whether or not it uses it.
+    COMMANDS = {
+        "/new": ("start_new", "start a new conversation"),
+        "/brief": ("toggle_brief", "three-sentence answers; /brief on|off"),
+        "/voice": ("toggle_voice", "spoken replies; /voice on|off"),
+        "/opacity": ("preview_opacity", "try a panel opacity, e.g. /opacity 0.8"),
+        "/reload": ("reload_config", "re-read config.toml"),
+        "/help": ("show_help", "list these commands"),
+    }
+
     def ask(self, question):
         if self.running:
             return
-        if question == "/new":
-            self.start_new()
-            return
-        if question == "/reload":
+        verb, _, argument = question.partition(" ")
+        command = self.COMMANDS.get(verb)
+        if command:
             self.present_answer()
-            self.reload_config()
-            return
-        if question.split(" ")[0] == "/opacity":
-            self.present_answer()
-            self.preview_opacity(question.partition(" ")[2].strip())
+            getattr(self, command[0])(argument.strip())
             return
         self.running = True
         self.present_answer()
