@@ -113,5 +113,7 @@
 # full-resolution JPEG is about 4x smaller than PNG and still legible.
 # format = "jpeg"     # or "png"
 # quality = 90
+# delay = 4           # seconds to wait on a Ctrl-held capture, so hover-only
+#                     # UI such as a tooltip can be brought up first
 # scale = 1.0         # e.g. 0.5 halves the resolution; smaller and cheaper,
 #                     # but small on-screen text may stop being readable

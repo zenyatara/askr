@@ -176,6 +176,17 @@ Picking an area is also much cheaper than a full monitor, which matters because
 attachments are re-sent with every later question: a 640×480 region is around
 20 KB against 500 KB for a 2560×1440 screen.
 
+**Hold Ctrl** for a delayed shot. Some things only exist while the mouse is
+over them — a game's item tooltip, an open menu — and both opening askr and the
+picker's screen freeze dismiss them. With Ctrl the delay starts *after* the area
+is chosen and the freeze is released, so you pick the region, hover whatever you
+wanted, and the capture catches it. The shutter sound tells you it fired.
+
+```toml
+[screenshot]
+delay = 4    # seconds, for Ctrl-held captures
+```
+
 Captures are full-resolution JPEG rather than PNG, because the agent keeps every
 attachment in the conversation and re-sends them with each later question. A
 handful of PNG screenshots can add tens of megabytes to every subsequent turn.

@@ -78,6 +78,9 @@ REGION_PICKERS = (
     ["omarchy-capture-region", "smart"],
     ["slurp"],
 )
+# Seconds to wait before a held-Ctrl capture, so hover-only UI -- a game's item
+# tooltip, a menu -- can be brought up after the area is chosen.
+DEFAULT_CAPTURE_DELAY = 4
 SHUTTER_SOUND_ID = "camera-shutter"
 SHUTTER_FALLBACK = Path("/usr/share/sounds/freedesktop/stereo/camera-shutter.oga")
 PROMPT_SIZE = (560, 96)
@@ -700,11 +703,12 @@ class Askr(Gtk.Application):
         self.mic_button = Gtk.Button()
         self.mic_button.connect("clicked", self.toggle_voice_input)
         self.camera_button = Gtk.Button()
-        self.camera_button.connect("clicked", self.capture_screenshot)
-        secondary = Gtk.GestureClick()
-        secondary.set_button(Gdk.BUTTON_SECONDARY)
-        secondary.connect("pressed", self.capture_region)
-        self.camera_button.add_controller(secondary)
+        # Driven by one gesture rather than "clicked", because the button number
+        # and the modifier state are both needed and "clicked" carries neither.
+        clicks = Gtk.GestureClick()
+        clicks.set_button(0)
+        clicks.connect("pressed", self.camera_pressed)
+        self.camera_button.add_controller(clicks)
         for button in (self.voice_toggle, self.brief_toggle, self.mic_button,
                        self.camera_button):
             row.append(button)
@@ -941,7 +945,8 @@ class Askr(Gtk.Application):
             self.camera_button,
             "📷",
             "Screenshot attached to the next question" if self.pending_image
-            else "Capture this monitor  ·  right-click to pick an area",
+            else "Capture this monitor  ·  right-click to pick an area  ·  "
+                 f"hold Ctrl for a {self.capture_delay():g}s delay",
             "icon-attached" if self.pending_image else "icon-action",
         )
 
@@ -970,18 +975,20 @@ class Askr(Gtk.Application):
         self.recording = False
         self.refresh_prompt()
 
-    def capture_screenshot(self, _button):
+    def camera_pressed(self, gesture, _presses, _x, _y):
+        """Right-click picks an area; holding Ctrl delays the shot."""
+        region = gesture.get_current_button() == Gdk.BUTTON_SECONDARY
+        held = gesture.get_current_event_state() & Gdk.ModifierType.CONTROL_MASK
+        self.capture_screenshot(region=region, delayed=bool(held))
+
+    def capture_screenshot(self, region=False, delayed=False):
         # Attaching a screenshot must not cost the question already typed:
         # show_prompt() clears the entry when the prompt comes back.
         self.draft = self.prompt_entry.get_text()
         self.hide_window(self.prompt_window)
-        threading.Thread(target=self.take_screenshot, daemon=True).start()
-
-    def capture_region(self, *_):
-        """Right-click: pick an area rather than taking the whole monitor."""
-        self.draft = self.prompt_entry.get_text()
-        self.hide_window(self.prompt_window)
-        threading.Thread(target=self.take_screenshot, args=(True,), daemon=True).start()
+        threading.Thread(
+            target=self.take_screenshot, args=(region, delayed), daemon=True
+        ).start()
 
     def pick_region(self):
         """Let the user drag out an area. None when they cancel."""
@@ -1006,7 +1013,14 @@ class Askr(Gtk.Application):
         self.debug("no region picker installed")
         return None
 
-    def take_screenshot(self, region=False):
+    def capture_delay(self):
+        configured = (self.config.get("screenshot") or {}).get("delay")
+        try:
+            return max(0.0, float(configured))
+        except (TypeError, ValueError):
+            return DEFAULT_CAPTURE_DELAY
+
+    def take_screenshot(self, region=False, delayed=False):
         # The agent keeps every attachment in the conversation and re-sends them
         # on each later turn, so capture size is paid again on every question.
         # A full-resolution JPEG is ~4x smaller than PNG and still legible.
@@ -1023,6 +1037,10 @@ class Askr(Gtk.Application):
                 image_path.unlink(missing_ok=True)
                 GLib.idle_add(self.finish_screenshot, None)
                 return
+            if delayed:
+                # After the area is chosen and the picker's screen freeze is
+                # released, so the shot catches whatever is hovered meanwhile.
+                time.sleep(self.capture_delay())
             monitors = json.loads(subprocess.check_output(["hyprctl", "monitors", "-j"], text=True))
             monitor = next((item["name"] for item in monitors if item.get("focused")), None)
             command = ["grim"]
