@@ -63,9 +63,20 @@ Conversations continue in one of three ways, depending on what the CLI offers:
 use their own `--continue`, which picks up that agent's most recent session —
 not necessarily askr's, if you also use the CLI directly.
 
-`codex` and `claude` are verified end to end, including resume. The rest are
-built from each CLI's documented headless flags; please open an issue if one
-has drifted.
+`codex`, `claude` and `opencode` are verified end to end, including
+continuation. The rest are built from each CLI's documented headless flags;
+please open an issue if one has drifted.
+
+Model names are whatever the agent itself expects, so they differ in shape.
+`opencode` wants `provider/model`:
+
+```toml
+[agent.models]
+opencode = "opencode/nemotron-3.5-lightning-free"
+```
+
+Run `opencode models` to see what yours offers. Any provider you have
+configured in the agent works — askr passes the string through untouched.
 
 ## Installing
 

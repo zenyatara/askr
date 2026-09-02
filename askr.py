@@ -95,8 +95,9 @@ DEBUG = bool(os.environ.get("ASKR_DEBUG") or os.environ.get("ASK_DEBUG"))
 #   text / thread   dotted paths into each JSON line; `[]` maps over a list
 #   text_when       only read `text` from lines matching these dotted paths
 #
-# codex and claude are verified against their CLIs. The rest follow each agent's
-# documented headless flags; report a correction if one drifts.
+# codex, claude and opencode are verified against their CLIs, including
+# continuation. The rest follow each agent's documented headless flags; report a
+# correction if one drifts.
 BUILTIN_AGENTS = {
     "codex": {
         "start": ["codex", "exec", "--json", "--sandbox", "read-only",
