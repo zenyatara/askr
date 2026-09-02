@@ -160,10 +160,21 @@ attach a screenshot of the focused monitor to a question, and
 
 ## Attaching a screenshot
 
-The 📷 button captures the focused monitor. askr hides itself first, so it never
-photographs its own prompt. You get a shutter sound, the button turns green, and
-the prompt's placeholder changes to say a screenshot is attached — it goes with
-your next question, whatever you type. Anything already typed is kept.
+The 📷 button captures the focused monitor. **Right-click it to pick an area
+instead** — useful when the question is about one window or one error message.
+On Omarchy the picker is `omarchy-capture-region`, so the screen freezes and the
+selection snaps to window and monitor edges exactly as its own screenshot tool
+does; elsewhere it falls back to `slurp`. Cancelling the pick just returns you
+to the prompt.
+
+askr hides itself first, so it never photographs its own prompt. You get a
+shutter sound, the button turns green, and the prompt's placeholder changes to
+say a screenshot is attached — it goes with your next question, whatever you
+type. Anything already typed is kept.
+
+Picking an area is also much cheaper than a full monitor, which matters because
+attachments are re-sent with every later question: a 640×480 region is around
+20 KB against 500 KB for a 2560×1440 screen.
 
 Captures are full-resolution JPEG rather than PNG, because the agent keeps every
 attachment in the conversation and re-sends them with each later question. A

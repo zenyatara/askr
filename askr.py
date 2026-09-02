@@ -70,6 +70,14 @@ PCM_PLAYERS = (
 )
 # canberra plays the shutter from whichever sound theme the desktop is using,
 # so askr does not have to ship an audio file for it.
+# Region pickers, best first. Omarchy's freezes the screen and snaps to window
+# and monitor edges, so the picker matches its own screenshot tool; slurp is the
+# plain-Hyprland fallback. Both print slurp's "X,Y WxH" and exit non-zero when
+# the pick is cancelled.
+REGION_PICKERS = (
+    ["omarchy-capture-region", "smart"],
+    ["slurp"],
+)
 SHUTTER_SOUND_ID = "camera-shutter"
 SHUTTER_FALLBACK = Path("/usr/share/sounds/freedesktop/stereo/camera-shutter.oga")
 PROMPT_SIZE = (560, 96)
@@ -693,6 +701,10 @@ class Askr(Gtk.Application):
         self.mic_button.connect("clicked", self.toggle_voice_input)
         self.camera_button = Gtk.Button()
         self.camera_button.connect("clicked", self.capture_screenshot)
+        secondary = Gtk.GestureClick()
+        secondary.set_button(Gdk.BUTTON_SECONDARY)
+        secondary.connect("pressed", self.capture_region)
+        self.camera_button.add_controller(secondary)
         for button in (self.voice_toggle, self.brief_toggle, self.mic_button,
                        self.camera_button):
             row.append(button)
@@ -929,7 +941,7 @@ class Askr(Gtk.Application):
             self.camera_button,
             "📷",
             "Screenshot attached to the next question" if self.pending_image
-            else "Capture this monitor for the next question",
+            else "Capture this monitor  ·  right-click to pick an area",
             "icon-attached" if self.pending_image else "icon-action",
         )
 
@@ -965,7 +977,36 @@ class Askr(Gtk.Application):
         self.hide_window(self.prompt_window)
         threading.Thread(target=self.take_screenshot, daemon=True).start()
 
-    def take_screenshot(self):
+    def capture_region(self, *_):
+        """Right-click: pick an area rather than taking the whole monitor."""
+        self.draft = self.prompt_entry.get_text()
+        self.hide_window(self.prompt_window)
+        threading.Thread(target=self.take_screenshot, args=(True,), daemon=True).start()
+
+    def pick_region(self):
+        """Let the user drag out an area. None when they cancel."""
+        for picker in REGION_PICKERS:
+            if not shutil.which(picker[0]):
+                continue
+            try:
+                result = subprocess.run(
+                    picker, stdin=subprocess.DEVNULL, capture_output=True,
+                    text=True, check=False,
+                )
+            except OSError as error:
+                self.debug("region picker failed:", picker[0], error)
+                continue
+            geometry = result.stdout.strip().splitlines()
+            if result.returncode == 0 and geometry:
+                return geometry[-1]
+            # Non-zero is the documented way both pickers report a cancelled
+            # pick, which is not an error worth reporting.
+            self.debug("region pick cancelled or failed:", picker[0], result.returncode)
+            return None
+        self.debug("no region picker installed")
+        return None
+
+    def take_screenshot(self, region=False):
         # The agent keeps every attachment in the conversation and re-sends them
         # on each later turn, so capture size is paid again on every question.
         # A full-resolution JPEG is ~4x smaller than PNG and still legible.
@@ -977,10 +1018,17 @@ class Askr(Gtk.Application):
         with tempfile.NamedTemporaryFile(suffix=suffix, dir=CAPTURE_DIR, delete=False) as image:
             image_path = Path(image.name)
         try:
+            geometry = self.pick_region() if region else None
+            if region and not geometry:
+                image_path.unlink(missing_ok=True)
+                GLib.idle_add(self.finish_screenshot, None)
+                return
             monitors = json.loads(subprocess.check_output(["hyprctl", "monitors", "-j"], text=True))
             monitor = next((item["name"] for item in monitors if item.get("focused")), None)
             command = ["grim"]
-            if monitor:
+            if geometry:
+                command += ["-g", geometry]
+            elif monitor:
                 command += ["-o", monitor]
             if scale:
                 command += ["-s", str(scale)]
@@ -1002,6 +1050,10 @@ class Askr(Gtk.Application):
         if error:
             self.append_error(f"[Error: {error}]")
             self.present_answer()
+            self.reopen_prompt()
+            return
+        if image_path is None:
+            # The pick was cancelled. Nothing to report; just come back.
             self.reopen_prompt()
             return
         if self.pending_image:
