@@ -440,7 +440,7 @@ class Askr(Gtk.Application):
             self.restore_visible_history()
         self.refresh_prompt()
         self.notice(
-            f"[Reloaded {CONFIG_FILE.name}: agent {self.agent['name']}, "
+            f"[Reloaded {CONFIG_FILE.name}: agent {self.describe_agent()}, "
             f"opacity {self.opacity:.2f}.]"
         )
 
@@ -495,6 +495,61 @@ class Askr(Gtk.Application):
             for verb, (_, description) in sorted(self.COMMANDS.items())
         )
         self.notice(f"[Commands]\n{listing}")
+
+    def describe_agent(self):
+        """The agent and the model it will actually be asked for."""
+        model = self.setting_for("models", "model")
+        return f"{self.agent['name']} ({model})" if model else self.agent["name"]
+
+    def show_config(self, argument=""):
+        """Report the settings in force and where each came from.
+
+        Deliberately the resolved values rather than the file: the file does not
+        show which agent Omarchy picked, whether a model applies to it, or that
+        piper is missing. It is also the right thing to paste into a bug report.
+        """
+        agent = self.config.get("agent") or {}
+        sound = self.config.get("sound") or {}
+        voice = self.config.get("voice") or {}
+        capture = self.config.get("screenshot") or {}
+
+        if agent.get("name"):
+            source = "pinned by config"
+        elif omarchy_agent():
+            source = "from omarchy default agent"
+        else:
+            source = "built-in fallback"
+
+        sound_file = (
+            expand(sound["file"]) if sound.get("file") else ASSET_DIR / "herdr-done.mp3"
+        )
+        piper = expand(voice.get("piper") or Path.home() / ".local" / "bin" / "piper")
+        speech = expand(
+            voice.get("model") or DATA_DIR / "voices" / "en_US-ljspeech-high.onnx"
+        )
+        available = piper.exists() and speech.exists()
+        conversation = self.current.get("messages") or []
+
+        rows = [
+            ("config", f"{CONFIG_FILE}" + ("" if CONFIG_FILE.exists() else "  (none, using defaults)")),
+            ("agent", f"{self.agent['name']}  ({source})"),
+            ("model", self.setting_for("models", "model") or "the agent's own default"),
+            ("effort", self.setting_for("effort", "reasoning_effort") or "the agent's own default"),
+            ("workdir", str(self.workdir)),
+            ("opacity", f"{self.opacity:.2f}"),
+            ("brief", "on" if self.brief_enabled else "off"),
+            ("voice", ("on" if self.voice_enabled else "off")
+                      + ("" if available else "  (unavailable: piper or its model is missing)")),
+            ("sound", ("on" if self.sound_enabled() else "off")
+                      + ("" if sound_file.exists() else "  (file missing)")),
+            ("capture", f"{capture.get('format', 'jpeg')} q{capture.get('quality', 90)}"
+                        + (f" scale {capture['scale']}" if capture.get("scale") else "")),
+            ("thread", str(self.current.get("thread_id") or "none yet")),
+            ("history", f"{len(conversation)} in this conversation, "
+                        f"{len(self.current.get('archived_conversations') or [])} archived"),
+        ]
+        width = max(len(name) for name, _ in rows)
+        self.notice("[Settings]\n" + "\n".join(f"  {n.ljust(width)}  {v}" for n, v in rows))
 
     def quit_cleanly(self):
         """Exit, saving the panel's geometry first so a relaunch restores it."""
@@ -900,6 +955,7 @@ class Askr(Gtk.Application):
         "/brief": ("toggle_brief", "three-sentence answers; /brief on|off"),
         "/voice": ("toggle_voice", "spoken replies; /voice on|off"),
         "/opacity": ("preview_opacity", "try a panel opacity, e.g. /opacity 0.8"),
+        "/config": ("show_config", "show the settings in force"),
         "/reload": ("reload_config", "re-read config.toml"),
         "/help": ("show_help", "list these commands"),
     }

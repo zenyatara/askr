@@ -14,6 +14,7 @@ Type `/help` in either input to list the commands:
 | `/brief` | three-sentence answers; `/brief on\|off` |
 | `/voice` | spoken replies; `/voice on\|off` |
 | `/opacity 0.8` | try a panel opacity |
+| `/config` | show the settings in force |
 | `/reload` | re-read `config.toml` |
 
 `/brief` and `/voice` are the same two toggles as the ⚡ and 🔊 buttons, and
@@ -174,6 +175,13 @@ askr.py --quit     # exit cleanly, saving the panel's geometry
 Reloading keeps the conversation and the panel's position. The one exception is
 the agent: changing it archives the current conversation and starts a fresh one,
 because thread ids are not interchangeable between agents.
+
+`/config` reports the settings actually in force — which agent was resolved and
+where from, the model it will be asked for, the working directory, and whether
+optional tools like piper are present. That is usually the fastest answer to
+"why is it not using my model", and the right thing to include in a bug report.
+Note that agents cannot reliably name their own model variant, so asking one
+directly is not a check.
 
 Set `ASKR_DEBUG=1` to log the agent command, the Hyprland geometry dispatches
 and sound playback to stderr. Note that the logged command includes your prompt
