@@ -14,6 +14,7 @@ Type `/help` in either input to list the commands:
 | `/brief` | three-sentence answers; `/brief on\|off` |
 | `/voice` | spoken replies; `/voice on\|off` |
 | `/opacity 0.8` | try a panel opacity |
+| `/model qwen` | search or switch model |
 | `/config` | show the settings in force |
 | `/reload` | re-read `config.toml` |
 
@@ -77,6 +78,20 @@ opencode = "opencode/nemotron-3.5-lightning-free"
 
 Run `opencode models` to see what yours offers. Any provider you have
 configured in the agent works — askr passes the string through untouched.
+
+`/model` searches that list from inside askr, which matters when a provider
+offers hundreds:
+
+```
+/model              current model, and how many are available
+/model kimi         list the ones matching "kimi"
+/model <full name>  switch for this session
+```
+
+A search matching exactly one model switches to it. Switching is session-only,
+and the reply tells you the `[agent.models]` line to make it stick; `/reload`
+restores whatever the file says. Agents that cannot list their models — codex
+among them — say so, and are set through config instead.
 
 ## Installing
 

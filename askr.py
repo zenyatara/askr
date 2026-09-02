@@ -88,6 +88,8 @@ DEBUG = bool(os.environ.get("ASKR_DEBUG") or os.environ.get("ASK_DEBUG"))
 #   image           appended only when a screenshot is attached
 #   prompt          flag placed immediately before the prompt, for agents that
 #                   take it as a flag value rather than positionally
+#   models          command listing the agent's model names, one per line, for
+#                   /model to search; omitted when the CLI cannot list them
 #   session         flag carrying a conversation id askr mints itself, for
 #                   agents that create a session on demand from a given id
 #   continue        used instead of `start` once a conversation exists, for
@@ -147,6 +149,7 @@ BUILTIN_AGENTS = {
         "start": ["opencode", "run"],
         "continue": ["opencode", "run", "--continue"],
         "model": ["--model", "{model}"],
+        "models": ["opencode", "models"],
         "format": "text",
     },
     "crush": {
@@ -329,6 +332,8 @@ class Askr(Gtk.Application):
         # The opacity actually in force. Seeded from config and reset by
         # /reload; /opacity moves it without touching the file.
         self.opacity = None
+        # Set by /model for this session only; config stays authoritative.
+        self.model_override = None
         self.waiting_mark = None
         self.waiting_timer = None
         self.waiting_since = 0.0
@@ -429,6 +434,7 @@ class Askr(Gtk.Application):
             self.notice("[Busy — reload again once the answer arrives.]")
             return
         self.config = load_config()
+        self.model_override = None
         self.opacity = self.ui_opacity()
         self.css_provider.load_from_data(build_css(self.opacity))
         self.workdir = self.resolve_workdir()
@@ -497,9 +503,13 @@ class Askr(Gtk.Application):
         )
         self.notice(f"[Commands]\n{listing}")
 
+    def active_model(self):
+        """The model that will actually be requested, override included."""
+        return self.model_override or self.setting_for("models", "model")
+
     def describe_agent(self):
         """The agent and the model it will actually be asked for."""
-        model = self.setting_for("models", "model")
+        model = self.active_model()
         return f"{self.agent['name']} ({model})" if model else self.agent["name"]
 
     def show_config(self, argument=""):
@@ -534,7 +544,8 @@ class Askr(Gtk.Application):
         rows = [
             ("config", f"{CONFIG_FILE}" + ("" if CONFIG_FILE.exists() else "  (none, using defaults)")),
             ("agent", f"{self.agent['name']}  ({source})"),
-            ("model", self.setting_for("models", "model") or "the agent's own default"),
+            ("model", (self.active_model() or "the agent's own default")
+                      + ("  (this session only)" if self.model_override else "")),
             ("effort", self.setting_for("effort", "reasoning_effort") or "the agent's own default"),
             ("workdir", str(self.workdir)),
             ("opacity", f"{self.opacity:.2f}"),
@@ -551,6 +562,74 @@ class Askr(Gtk.Application):
         ]
         width = max(len(name) for name, _ in rows)
         self.notice("[Settings]\n" + "\n".join(f"  {n.ljust(width)}  {v}" for n, v in rows))
+
+    MODEL_LIST_LIMIT = 25
+
+    def choose_model(self, argument=""):
+        """Show, search or switch the model the current agent will be asked for.
+
+        A bare name switches; anything else is treated as a search, because a
+        provider like OpenRouter offers hundreds and a flat list is unreadable.
+        """
+        lister = self.agent.get("models")
+        if not lister:
+            self.notice(
+                f"[Model: {self.active_model() or "the agent's own default"}. "
+                f"{self.agent['name']} cannot list its models, so set one under "
+                f"[agent.models] in {CONFIG_FILE}.]"
+            )
+            return
+        self.notice(f"[Asking {self.agent['name']} which models it offers...]")
+        threading.Thread(target=self.load_models, args=(argument,), daemon=True).start()
+
+    def load_models(self, argument):
+        """Run the agent's list command off the main thread; it is not instant."""
+        names = []
+        try:
+            result = subprocess.run(
+                self.agent["models"], stdin=subprocess.DEVNULL, capture_output=True,
+                text=True, timeout=60, check=False,
+            )
+            names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        except (OSError, subprocess.SubprocessError) as error:
+            self.debug("listing models failed:", error)
+        GLib.idle_add(self.offer_models, names, argument)
+
+    def offer_models(self, names, argument):
+        if not names:
+            self.notice("[Could not list models. Is the agent installed and configured?]")
+            return False
+        if not argument:
+            self.notice(
+                f"[Model: {self.active_model() or "the agent's own default"}. "
+                f"{len(names)} available - search with /model qwen, or switch with "
+                f"the full name.]"
+            )
+            return False
+
+        matches = [n for n in names if argument.lower() in n.lower()]
+        if argument in names or len(matches) == 1:
+            self.use_model(argument if argument in names else matches[0])
+            return False
+        if not matches:
+            self.notice(f"[No model matching {argument!r} among {len(names)}.]")
+            return False
+        shown = matches[: self.MODEL_LIST_LIMIT]
+        more = len(matches) - len(shown)
+        listing = "\n".join(f"  {name}" for name in shown)
+        self.notice(
+            f"[{len(matches)} models matching {argument!r}]\n{listing}"
+            + (f"\n  ... and {more} more; narrow the search." if more else "")
+        )
+        return False
+
+    def use_model(self, name):
+        self.model_override = name
+        self.notice(
+            f"[Model {name} for this session. To keep it, set\n"
+            f"  {self.agent['name']} = \"{name}\"\n"
+            f"under [agent.models] in {CONFIG_FILE}.]"
+        )
 
     def quit_cleanly(self):
         """Exit, saving the panel's geometry first so a relaunch restores it."""
@@ -956,6 +1035,7 @@ class Askr(Gtk.Application):
         "/brief": ("toggle_brief", "three-sentence answers; /brief on|off"),
         "/voice": ("toggle_voice", "spoken replies; /voice on|off"),
         "/opacity": ("preview_opacity", "try a panel opacity, e.g. /opacity 0.8"),
+        "/model": ("choose_model", "show, search or switch model"),
         "/config": ("show_config", "show the settings in force"),
         "/reload": ("reload_config", "re-read config.toml"),
         "/help": ("show_help", "list these commands"),
@@ -998,7 +1078,7 @@ class Askr(Gtk.Application):
         fields = {
             "workdir": str(self.workdir),
             "thread_id": thread_id or "",
-            "model": self.setting_for("models", "model") or "",
+            "model": self.active_model() or "",
             "effort": self.setting_for("effort", "reasoning_effort") or "",
             "image": str(image_path) if image_path else "",
         }
