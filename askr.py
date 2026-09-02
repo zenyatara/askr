@@ -180,6 +180,10 @@ BUILTIN_AGENTS = {
 }
 
 
+# Typing the plural is the obvious mistake, and it used to reach the agent.
+COMMAND_ALIASES = {"/models": "/model", "/settings": "/config", "/opacity=": "/opacity"}
+
+
 def load_config():
     """Read config.toml. A missing or broken file must never stop askr starting."""
     try:
@@ -573,11 +577,16 @@ class Askr(Gtk.Application):
         """
         lister = self.agent.get("models")
         if not lister:
-            self.notice(
-                f"[Model: {self.active_model() or "the agent's own default"}. "
-                f"{self.agent['name']} cannot list its models, so set one under "
-                f"[agent.models] in {CONFIG_FILE}.]"
-            )
+            # No catalogue to search, but a name can still be set: switching
+            # never needed the list, only searching did.
+            if argument:
+                self.use_model(argument, checked=False)
+            else:
+                self.notice(
+                    f"[Model: {self.active_model() or "the agent's own default"}. "
+                    f"{self.agent['name']} cannot list its models, so /model "
+                    f"takes a name to switch to.]"
+                )
             return
         self.notice(f"[Asking {self.agent['name']} which models it offers...]")
         threading.Thread(target=self.load_models, args=(argument,), daemon=True).start()
@@ -623,10 +632,11 @@ class Askr(Gtk.Application):
         )
         return False
 
-    def use_model(self, name):
+    def use_model(self, name, checked=True):
         self.model_override = name
+        unchecked = "" if checked else f" ({self.agent['name']} cannot list models, so this is unchecked)"
         self.notice(
-            f"[Model {name} for this session. To keep it, set\n"
+            f"[Model {name} for this session{unchecked}. To keep it, set\n"
             f"  {self.agent['name']} = \"{name}\"\n"
             f"under [agent.models] in {CONFIG_FILE}.]"
         )
@@ -1045,10 +1055,16 @@ class Askr(Gtk.Application):
         if self.running:
             return
         verb, _, argument = question.partition(" ")
-        command = self.COMMANDS.get(verb)
+        command = self.COMMANDS.get(verb) or self.COMMANDS.get(COMMAND_ALIASES.get(verb))
         if command:
             self.present_answer()
             getattr(self, command[0])(argument.strip())
+            return
+        # A bare /word is a mistyped command, not a question. Sending it to the
+        # agent costs a real turn and answers something nobody asked.
+        if re.match(r"^/[a-z-]+(\s|$)", question):
+            self.present_answer()
+            self.notice(f"[No command {verb}. Type /help to see them.]")
             return
         self.running = True
         self.present_answer()

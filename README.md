@@ -90,8 +90,12 @@ offers hundreds:
 
 A search matching exactly one model switches to it. Switching is session-only,
 and the reply tells you the `[agent.models]` line to make it stick; `/reload`
-restores whatever the file says. Agents that cannot list their models — codex
-among them — say so, and are set through config instead.
+restores whatever the file says.
+
+Searching needs the agent to be able to enumerate its models, and not all can —
+`codex models` is an interactive picker with no headless form. Those agents
+still switch by name (`/model gpt-5.6-terra`); askr just cannot check the name
+first, and says so.
 
 ## Installing
 
